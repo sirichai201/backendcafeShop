@@ -34,6 +34,7 @@ func main() {
 	routes.User(app)
 	routes.Admin(app)
 	routes.Product(app)
+	routes.Order(app)
 
 	// Start the Fiber server
 	log.Fatal(app.Listen(":3000"))

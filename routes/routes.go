@@ -47,11 +47,15 @@ func Product(app *fiber.App) {
 	v3.Put("/:id", c.UpdatetProduct)
 	v3.Delete("/:id", c.DeletetProduct)
 }
-
-// func Order_id(app *fiber.App) {
-// 	app.Use(logger.New())
-// 	api := app.Group("/api")
-// 	// /v4
-// 	v4 := api.Group("/order/:id")
-// 	v4.Post("/", c.CreateOrder)
-// }
+func Order(app *fiber.App) {
+	app.Use(logger.New())
+	app.Use(basicauth.New(basicauth.Config{
+		Users: map[string]string{
+			"admin": "1234",
+		},
+	}))
+	api := app.Group("/api")
+	// /v3
+	v4 := api.Group("/Product")
+	v4.Get("/getProduct", c.GetProductsAndOrders)
+}

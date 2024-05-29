@@ -57,3 +57,47 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(order)
 }
+
+func GetProductsAndOrders(c *fiber.Ctx) error {
+	// Find all products
+	cursor, err := database.ProductsCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+	defer cursor.Close(context.Background())
+
+	// Variables to store product with orders and count of products with orders
+	var products []models.Products
+	productsWithOrdersCount := 0
+
+	for cursor.Next(context.Background()) {
+		var product models.Products
+		if err := cursor.Decode(&product); err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+
+		// Check if there are orders for the product
+		ordersCursor, err := database.OrdersCollection.Find(context.Background(), bson.M{"product_id": product.Product_ID})
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		defer ordersCursor.Close(context.Background())
+
+		if ordersCursor.Next(context.Background()) {
+			products = append(products, product)
+			productsWithOrdersCount++
+		}
+	}
+
+	// Prepare the response
+	type ProductsSummary struct {
+		ProductsWithOrdersCount int               `json:"products_with_orders_count"`
+		Products                []models.Products `json:"products"`
+	}
+	summary := ProductsSummary{
+		ProductsWithOrdersCount: productsWithOrdersCount,
+		Products:                products,
+	}
+
+	return c.Status(fiber.StatusOK).JSON(summary)
+}
