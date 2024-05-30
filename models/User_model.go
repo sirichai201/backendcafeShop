@@ -10,4 +10,5 @@ type Users struct {
 	Role     string             `json:"role"`
 	Status   int                `json:"status"`
 	Phone    string             `json:"phone" validate:"required,min=8,max=10"`
+	Point    int                `json:"point"`
 }

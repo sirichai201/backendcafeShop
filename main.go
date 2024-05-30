@@ -27,13 +27,14 @@ func main() {
 	// Initialize the Fiber app
 	app := fiber.New()
 
+
 	// Use the logger middleware
 	app.Use(logger.New())
 
 	// Register routes
 	routes.User(app)
-	routes.Admin(app)
 	routes.Product(app)
+	routes.Admin(app)
 	routes.Order(app)
 
 	// Start the Fiber server
