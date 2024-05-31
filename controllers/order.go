@@ -13,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateOrder(c *fiber.Ctx) error {
+func AddOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
