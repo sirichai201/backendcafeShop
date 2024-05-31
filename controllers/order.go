@@ -13,81 +13,78 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+
+
+
+
 func AddOrder(c *fiber.Ctx) error {
-	id := c.Params("id")
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("รหัสผลิตภัณฑ์ไม่ถูกต้อง")
-	}
+    id := c.Params("id")
+    objID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).SendString("รหัสผลิตภัณฑ์ไม่ถูกต้อง")
+    }
 
-	order := new(models.Orders)
-	if err := c.BodyParser(order); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}
+    order := new(models.Orders)
+    if err := c.BodyParser(order); err != nil {
+        return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+    }
 
-	if order.Quantity <= 0 {
-		return c.Status(fiber.StatusBadRequest).SendString("จำนวนต้องมากกว่า 0")
-	}
+    if order.Quantity <= 0 {
+        return c.Status(fiber.StatusBadRequest).SendString("จำนวนต้องมากกว่า 0")
+    }
 
-	if order.Member == "" {
-		return c.Status(fiber.StatusBadRequest).SendString("กรุณาใส่ข้อมูลสมาชิก")
-	}
+    if order.Member == "" {
+        return c.Status(fiber.StatusBadRequest).SendString("กรุณาใส่ข้อมูลสมาชิก")
+    }
 
-	product := new(models.Products)
+    product := new(models.Products)
 
-	// โหลดตำแหน่งเวลา Bangkok
-	location, err := time.LoadLocation("Asia/Bangkok")
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("ไม่สามารถโหลดตำแหน่งเวลาได้")
-	}
-	// ตั้งค่าเวลาปัจจุบันตามเขตเวลา Bangkok
-	order.CreatedAt = time.Now().In(location)
+    // โหลดตำแหน่งเวลา Bangkok
+    location, err := time.LoadLocation("Asia/Bangkok")
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).SendString("ไม่สามารถโหลดตำแหน่งเวลาได้")
+    }
+    // ตั้งค่าเวลาปัจจุบันตามเขตเวลา Bangkok
+    order.CreatedAt = time.Now().In(location)
 
-	err = database.ProductsCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&product)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return c.Status(fiber.StatusNotFound).SendString("ไม่พบผลิตภัณฑ์")
-		}
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
+    err = database.ProductsCollection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&product)
+    if err != nil {
+        if err == mongo.ErrNoDocuments {
+            return c.Status(fiber.StatusNotFound).SendString("ไม่พบผลิตภัณฑ์")
+        }
+        return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+    }
 
-	order.Total_Price = int(product.ProductPrice * float64(order.Quantity))
+    order.Total_Price = int(product.ProductPrice * float64(order.Quantity))
 
-	member := order.Member
-	var user models.Users
-	err = database.UsersCollection.FindOne(context.Background(), bson.M{"phone": member}).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return c.Status(fiber.StatusNotFound).SendString("ไม่พบผู้ใช้")
-		}
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
+    member := order.Member
+    var user models.Users
+    err = database.UsersCollection.FindOne(context.Background(), bson.M{"phone": member}).Decode(&user)
+    if err != nil {
+        if err == mongo.ErrNoDocuments {
+            return c.Status(fiber.StatusNotFound).SendString("ไม่พบผู้ใช้")
+        }
+        return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+    }
 
-	order.PesentPoint = int(float64(product.ProductPoint) * float64(order.Quantity))
-	user.Point += int(float64(product.ProductPoint) * float64(order.Quantity))
+    order.User_id = user.User_ID
+    order.Product_id = objID
+    order.Status = "0"
 
-	_, err = database.UsersCollection.UpdateOne(
-		context.Background(),
-		bson.M{"_id": user.User_ID},
-		bson.M{"$set": bson.M{"point": user.Point}},
-	)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
+    // Insert the document into the database
+    result, err := database.OrdersCollection.InsertOne(context.Background(), order)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+    }
+    order.Order_id = result.InsertedID.(primitive.ObjectID)
 
-	order.User_id = user.User_ID
-	order.Product_id = objID
-	order.Status = "0"
+    // เพิ่มแต้มให้ผู้ใช้ (หากสถานะเป็น 1)
+    err = AddPointsToUser(order, &user, product)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+    }
 
-	// Insert the document into the database
-	result, err := database.OrdersCollection.InsertOne(context.Background(), order)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
-	order.Order_id = result.InsertedID.(primitive.ObjectID)
-
-	return c.Status(fiber.StatusCreated).JSON(order)
+    return c.Status(fiber.StatusCreated).JSON(order)
 }
 func GetProductsAndOrders(c *fiber.Ctx) error { //เช็คProduct  ที่มี  Order โชว์รายการ product ที่มี ออเดอร์ออกมา
 	// Find all products
@@ -224,6 +221,7 @@ func CreateBillByUserID(c *fiber.Ctx) error { //สร้างบิลที�
 		PesentPoint: totalPoints,
 		Payment:     "0", // Assuming you have a function to calculate the points
 	}
+	
 
 	// Save the bill to the database
 	result, err := database.BillsCollection.InsertOne(context.Background(), bill) // Assuming BillsCollection is the correct collection
@@ -235,53 +233,119 @@ func CreateBillByUserID(c *fiber.Ctx) error { //สร้างบิลที�
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
-func ChackOut(c *fiber.Ctx) error {
-	id := c.Params("id") // Bill ID
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid Bill ID")
-	}
 
-	// Find the bill with the specified ID and payment status "0"
-	var bill models.Bill
-	filter := bson.M{"_id": objID, "payment": "0"}
-	err = database.BillsCollection.FindOne(context.Background(), filter).Decode(&bill)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return c.Status(fiber.StatusNotFound).SendString("Bill not found")
-		}
-		log.Fatal(err)
-	}
+func CheckOut(c *fiber.Ctx) error {
+    id := c.Params("id") // Bill ID
+    objID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).SendString("Invalid Bill ID")
+    }
 
-	// Update bill payment status to "1"
-	bill.Payment = "1"
-	_, err = database.BillsCollection.ReplaceOne(context.Background(), bson.M{"_id": objID}, bill)
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Find the bill with the specified ID and payment status "0"
+    var bill models.Bill
+    filter := bson.M{"_id": objID, "payment": "0"}
+    err = database.BillsCollection.FindOne(context.Background(), filter).Decode(&bill)
+    if err != nil {
+        if err == mongo.ErrNoDocuments {
+            return c.Status(fiber.StatusNotFound).SendString("Bill not found")
+        }
+        log.Fatal(err)
+    }
 
-	// Find all orders for the user associated with the bill
-	var orders []models.Orders
-	filter = bson.M{"user_id": bill.User_id}
-	cursor, err := database.OrdersCollection.Find(context.Background(), filter)
+    // Update bill payment status to "1"
+    bill.Payment = "1"
+    _, err = database.BillsCollection.UpdateOne(
+        context.Background(),
+        bson.M{"_id": objID},
+        bson.M{"$set": bson.M{"payment": "1"}},
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Find all orders for the user associated with the bill
+    var orders []models.Orders
+    filter = bson.M{"user_id": bill.User_id, "status": "0"} // Include status "0"
+    cursor, err := database.OrdersCollection.Find(context.Background(), filter)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer cursor.Close(context.Background())
+
+    // Separate the cursor.All call and the if statement
+    err = cursor.All(context.Background(), &orders)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Find the user associated with the bill
+    var user models.Users
+    err = database.UsersCollection.FindOne(context.Background(), bson.M{"_id": bill.User_id}).Decode(&user)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Update each order's status to "1" and add points to the user
+    for _, order := range orders {
+        log.Println(order)
+        _, err = database.OrdersCollection.UpdateOne(
+            context.Background(),
+            bson.M{"_id": order.Order_id},
+            bson.M{"$set": bson.M{"status": "1"}},
+        )
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        // Find the product associated with the order
+        var product models.Products
+        err = database.ProductsCollection.FindOne(context.Background(), bson.M{"_id": order.Product_id}).Decode(&product)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        // Add points to the user
+        err = AddPointsToUser(&order, &user, &product)
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+
+    // Send back the updated bill and orders
+    response := struct {
+        Bill   models.Bill   `json:"bill"`
+        Orders []models.Orders `json:"orders"`
+    }{
+        Bill:   bill,
+        Orders: orders,
+    }
+
+    return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func AddPointsToUser(order *models.Orders, user *models.Users, product *models.Products) error {
+    order.PesentPoint = int(float64(product.ProductPoint) * float64(order.Quantity))
+    user.Point += order.PesentPoint
+
+    // อัปเดตแต้มในฐานข้อมูล
+    _, err := database.UsersCollection.UpdateOne(
+        context.Background(),
+        bson.M{"_id": user.User_ID},
+        bson.M{"$set": bson.M{"point": user.Point}},
+    )
+    return err
+}
+
+func GetBill(c *fiber.Ctx) error {
+	cursor, err := database.BillsCollection.Find(context.Background(), bson.M{})
 	if err != nil {
-		log.Fatal(err)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 	defer cursor.Close(context.Background())
-	if err = cursor.All(context.Background(), &orders); err != nil {
-		log.Fatal(err)
-	}
 
-	// Update each order's status to "1"
-	for _, order := range orders {
-		log.Println(order)
-		updateFilter := bson.M{"status": "0"}
-		order.Status = "1"
-		_, err = database.OrdersCollection.ReplaceOne(context.Background(), updateFilter, order)
-		if err != nil {
-			log.Fatal(err)
-		}
+	var Bills []models.Bill
+	if err := cursor.All(context.Background(), &Bills); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
-
-	return c.SendStatus(fiber.StatusNoContent)
+	return c.JSON(Bills)
 }

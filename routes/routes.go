@@ -19,7 +19,7 @@ func User(app *fiber.App) {
 	v1.Post("/register", c.Register)
 	v1.Post("/addOrder/:id", c.AddOrder)
 	v1.Put("/updateUser/:id", c.UpdateUser)
-	v1.Put("/ChackOut/:id", c.ChackOut)
+	v1.Put("/ChackOut/:id", c.CheckOut)
 	v1.Post("/CreateBill/:id", c.CreateBillByUserID)
 }
 func Product(app *fiber.App) {
@@ -72,5 +72,6 @@ func Order(app *fiber.App) {
 	v4 := api.Group("/OrderProduct")
 	v4.Get("/GetProductsAndOrders", c.GetProductsAndOrders)
 	v4.Get("/GetProductOrders/:id", c.GetProductOrders)
+	v4.Get("/GetBill",c.GetBill)
 
 }
