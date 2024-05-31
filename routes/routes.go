@@ -2,21 +2,11 @@ package routes
 
 import (
 	c "cafeshop-backend/controllers"
-	"cafeshop-backend/database"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
 )
-
-func InitializeRoutes(client *mongo.Client) *mux.Router {
-	r := mux.NewRouter()
-	r.HandleFunc("/api/search/{id}", c.GetFacID(database.ProductsCollection)).Methods("GET")
-	return r
-
-}
 
 func User(app *fiber.App) {
 	app.Use(logger.New())
@@ -26,6 +16,7 @@ func User(app *fiber.App) {
 	v1.Post("/login", c.Login)
 	v1.Post("/register", c.Register)
 	v1.Post("/addOrder/:id", c.CreateOrder)
+	v1.Put("/updateUser/:id", c.UpdateUser)
 }
 func Product(app *fiber.App) {
 	app.Use(logger.New())
@@ -50,7 +41,7 @@ func Admin(app *fiber.App) {
 	v2 := api.Group("/admin")
 	v2.Get("/GetProduct", c.GetProduct)
 	v2.Get("/GetProductByID/:id", c.GetProductByID)
-	
+
 	v2.Post("/", c.CreateProduct)
 	v2.Put("/:id", c.UpdatetProduct)
 	v2.Delete("/:id", c.DeletetProduct)
@@ -71,4 +62,7 @@ func Order(app *fiber.App) {
 	// /v3
 	v4 := api.Group("/OrderProduct")
 	v4.Get("/GetProductsAndOrders", c.GetProductsAndOrders)
+	v4.Get("/GetProductOrders/:id", c.GetProductOrders)
+	v4.Put("/ChackOut/:id", c.ChackOut)
+	v4.Post("/CreateBill/:id", c.CreateBillByUserID)
 }

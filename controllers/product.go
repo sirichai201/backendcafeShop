@@ -101,7 +101,12 @@ func CreateProduct(c *fiber.Ctx) error {
 	if err == nil {
 		return c.Status(fiber.StatusBadRequest).SendString("Product_Name already exists")
 	}
-
+	if Product.ProductPrice < 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Price must more than 0")
+	}
+	if Product.ProductPoint < 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Point must more than 0")
+	}
 	result, err := database.ProductsCollection.InsertOne(context.Background(), Product)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
@@ -123,7 +128,12 @@ func UpdatetProduct(c *fiber.Ctx) error {
 	if err := c.BodyParser(Product); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
-
+	if Product.ProductPrice < 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Price must more than 0")
+	}
+	if Product.ProductPoint < 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Point must more than 0")
+	}
 	_, err = database.ProductsCollection.ReplaceOne(context.Background(), bson.M{"_id": objID}, Product)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())

@@ -16,6 +16,7 @@ var UsersCollection *mongo.Collection
 var OrdersCollection *mongo.Collection
 var ProductsCollection *mongo.Collection
 var PointsCollection *mongo.Collection
+var BillsCollection *mongo.Collection
 
 func InitDatabase(uri string) error {
 	// Set client options
@@ -49,6 +50,7 @@ func InitCollection() {
 	OrdersCollection = client.Database(databaseName).Collection("Orders")
 	ProductsCollection = client.Database(databaseName).Collection("Products")
 	PointsCollection = client.Database(databaseName).Collection("Points")
+	BillsCollection = client.Database(databaseName).Collection("Bills")
 }
 
 func Disconnect() {
