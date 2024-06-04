@@ -86,8 +86,8 @@ func AddOrder(c *fiber.Ctx) error {
 
     return c.Status(fiber.StatusCreated).JSON(order)
 }
-func GetProductsAndOrders(c *fiber.Ctx) error { //เช็คProduct  ที่มี  Order โชว์รายการ product ที่มี ออเดอร์ออกมา
-	// Find all products
+func GetProductsAndOrders(c *fiber.Ctx) error {
+ 	// Find all products
 	cursor, err := database.ProductsCollection.Find(context.Background(), bson.M{})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
@@ -327,7 +327,6 @@ func AddPointsToUser(order *models.Orders, user *models.Users, product *models.P
     order.PesentPoint = int(float64(product.ProductPoint) * float64(order.Quantity))
     user.Point += order.PesentPoint
 
-    // อัปเดตแต้มในฐานข้อมูล
     _, err := database.UsersCollection.UpdateOne(
         context.Background(),
         bson.M{"_id": user.User_ID},

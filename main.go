@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"cafeshop-backend/database"
 	"cafeshop-backend/routes"
 )
@@ -15,6 +15,7 @@ import (
 const mongoURI = "mongodb+srv://sirichaichantharasri4:First0903319646@cafeshop.iy0znlw.mongodb.net/?retryWrites=true&w=majority&appName=cafeShop"
 
 func main() {
+
 	// Connect to MongoDB
 	if err := database.InitDatabase(mongoURI); err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
@@ -26,7 +27,7 @@ func main() {
 
 	// Initialize the Fiber app
 	app := fiber.New()
-
+	app.Use(cors.New())
 
 	// Use the logger middleware
 	app.Use(logger.New())
