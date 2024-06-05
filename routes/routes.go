@@ -20,7 +20,11 @@ func User(app *fiber.App) {
 	v1.Post("/addOrder/:id", c.AddOrder)
 	v1.Put("/updateUser/:id", c.UpdateUser)
 	v1.Put("/ChackOut/:id", c.CheckOut)
+	v1.Get("/user", c.GetUser)
 	v1.Post("/CreateBill/:id", c.CreateBillByUserID)
+	v1.Get("/GetBill",c.GetBill)
+	v1.Get("/AllGetProductsAndOrders",c.AllGetProductsAndOrders)
+	v1.Get("/GetProductsAndOrders", c.GetProductsAndOrders)
 }
 func Product(app *fiber.App) {
 	app.Use(logger.New())

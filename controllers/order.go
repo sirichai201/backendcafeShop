@@ -16,7 +16,19 @@ import (
 
 
 
+func AllGetProductsAndOrders(c *fiber.Ctx) error {
+	cursor, err := database.OrdersCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+	defer cursor.Close(context.Background())
 
+	var Orders []models.Orders
+	if err := cursor.All(context.Background(), &Orders); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+	return c.JSON(Orders)
+}
 func AddOrder(c *fiber.Ctx) error {
     id := c.Params("id")
     objID, err := primitive.ObjectIDFromHex(id)
@@ -322,7 +334,6 @@ func CheckOut(c *fiber.Ctx) error {
 
     return c.Status(fiber.StatusOK).JSON(response)
 }
-
 func AddPointsToUser(order *models.Orders, user *models.Users, product *models.Products) error {
     order.PesentPoint = int(float64(product.ProductPoint) * float64(order.Quantity))
     user.Point += order.PesentPoint
@@ -334,6 +345,7 @@ func AddPointsToUser(order *models.Orders, user *models.Users, product *models.P
     )
     return err
 }
+
 
 func GetBill(c *fiber.Ctx) error {
 	cursor, err := database.BillsCollection.Find(context.Background(), bson.M{})

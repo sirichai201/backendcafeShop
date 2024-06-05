@@ -107,6 +107,12 @@ func CreateProduct(c *fiber.Ctx) error {
 	if Product.ProductPoint < 0 {
 		return c.Status(fiber.StatusBadRequest).SendString("Point must more than 0")
 	}
+	if Product.Image == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Input Link Image ")
+	}
+	if Product.Description == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Input Description ")
+	}
 	result, err := database.ProductsCollection.InsertOne(context.Background(), Product)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())

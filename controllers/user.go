@@ -35,7 +35,20 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("Account Blocked")
 	}
 
-	return c.Status(fiber.StatusAccepted).SendString("Login Success")
+	// Create a response struct to include the user's name and phone number
+	response := struct {
+		Message     string `json:"message"`
+		UserName    string `json:"username"`
+		PhoneNumber string `json:"phone_number"`
+		Email       string `json:"email"`
+	}{
+		Message:     "Login Success",
+		UserName:    user.UserName, // Assuming the field name is UserName in models.Users
+		PhoneNumber: user.Phone,
+		Email:       user.Email, // Assuming the field name is PhoneNumber in models.Users
+	}
+
+	return c.Status(fiber.StatusAccepted).JSON(response)
 }
 
 // func Login(c *fiber.Ctx) error {
