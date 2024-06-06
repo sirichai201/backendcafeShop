@@ -15,55 +15,44 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetProduct(c *fiber.Ctx) error {
-	cursor, err := database.ProductsCollection.Find(context.Background(), bson.M{})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
-	defer cursor.Close(context.Background())
+// func GetProduct(c *fiber.Ctx) error {
+// 	cursor, err := database.ProductsCollection.Find(context.Background(), bson.M{})
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+// 	}
+// 	defer cursor.Close(context.Background())
 
-	var Product []models.Products
-	if err := cursor.All(context.Background(), &Product); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-	}
-	return c.JSON(Product)
-}
+// 	var Product []models.Products
+// 	if err := cursor.All(context.Background(), &Product); err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+// 	}
+// 	return c.JSON(Product)
+// }
 
-// func GetProductByName(c *fiber.Ctx) error {
-// 	name := c.Params("name")
-// 	var product models.Products
-// 	log.Printf("Searching for product with name: %s\n", name)
-// 	productname := bson.M{"product_name": name}
-// 	log.Printf("Filter used: %v\n", productname)
-
-//		database.ProductsCollection.FindOne(context.Background(), bson.M{"product_name": productname}).Decode(&product)
-//		log.Printf("Product found: %+v\n", product)
-//		return c.JSON(product)
-//	}
 func GetProductByName(c *fiber.Ctx) error {
-    name := c.Query("name")
-    
-    if name == "" {
-        return c.Status(fiber.StatusBadRequest).SendString("Query parameter 'name' is required")
-    }
+	name := c.Query("name")
 
-    var product models.Products
-    log.Printf("Searching for product with name: %s\n", name)
-    filter := bson.M{"productname": name}
-    log.Printf("Filter used: %v\n", filter)
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Query parameter 'name' is required")
+	}
 
-    err := database.ProductsCollection.FindOne(context.Background(), filter).Decode(&product)
-    if err != nil {
-        if err == mongo.ErrNoDocuments {
-            log.Println("Product not found:", err)
-            return c.Status(fiber.StatusNotFound).SendString("Product not found")
-        }
-        log.Println("Error occurred while searching for product:", err)
-        return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-    }
+	var product models.Products
+	log.Printf("Searching for product with name: %s\n", name)
+	filter := bson.M{"productname": name}
+	log.Printf("Filter used: %v\n", filter)
 
-    log.Printf("Product found: %+v\n", product)
-    return c.JSON(product)
+	err := database.ProductsCollection.FindOne(context.Background(), filter).Decode(&product)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			log.Println("Product not found:", err)
+			return c.Status(fiber.StatusNotFound).SendString("Product not found")
+		}
+		log.Println("Error occurred while searching for product:", err)
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+
+	log.Printf("Product found: %+v\n", product)
+	return c.JSON(product)
 }
 
 func GetProductByID(c *fiber.Ctx) error {
@@ -90,71 +79,100 @@ func CreateProduct(c *fiber.Ctx) error {
 	if err := c.BodyParser(Product); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
+
 	validate := validator.New()
 	errors := validate.Struct(Product)
 
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors.Error())
 	}
+
 	var existingProduct models.Products
-	err := database.UsersCollection.FindOne(context.Background(), bson.M{"productname": Product.ProductName}).Decode(&existingProduct)
+	err := database.ProductsCollection.FindOne(context.Background(), bson.M{"productname": Product.ProductName}).Decode(&existingProduct)
 	if err == nil {
 		return c.Status(fiber.StatusBadRequest).SendString("Product_Name already exists")
 	}
+
 	if Product.ProductPrice < 0 {
-		return c.Status(fiber.StatusBadRequest).SendString("Price must more than 0")
+		return c.Status(fiber.StatusBadRequest).SendString("Product_Price must be greater than 0")
 	}
-	if Product.ProductPoint < 0 {
-		return c.Status(fiber.StatusBadRequest).SendString("Point must more than 0")
-	}
-	if Product.Image == "" {
-		return c.Status(fiber.StatusBadRequest).SendString("Input Link Image ")
-	}
-	if Product.Description == "" {
-		return c.Status(fiber.StatusBadRequest).SendString("Input Description ")
-	}
-	result, err := database.ProductsCollection.InsertOne(context.Background(), Product)
+
+	_, err = database.ProductsCollection.InsertOne(context.Background(), Product)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
-
-	Product.ProductID = result.InsertedID.(primitive.ObjectID)
 
 	return c.Status(fiber.StatusCreated).JSON(Product)
 }
 
-func UpdatetProduct(c *fiber.Ctx) error {
-	id := c.Params("id")
-	objID, err := primitive.ObjectIDFromHex(id)
+func GetProducts(c *fiber.Ctx) error {
+	var products []models.Products
+
+	cursor, err := database.ProductsCollection.Find(context.Background(), bson.M{})
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid Product ID")
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+	}
+	defer cursor.Close(context.Background())
+
+	if err := cursor.All(context.Background(), &products); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
-	Product := new(models.Products)
-	if err := c.BodyParser(Product); err != nil {
+	return c.Status(fiber.StatusOK).JSON(products)
+}
+
+func UpdatetProduct(c *fiber.Ctx) error {
+	productID := c.Params("id")
+	var updateData models.Products
+
+	if err := c.BodyParser(&updateData); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
-	if Product.ProductPrice < 0 {
-		return c.Status(fiber.StatusBadRequest).SendString("Price must more than 0")
+
+	validate := validator.New()
+	errors := validate.Struct(updateData)
+
+	if errors != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(errors.Error())
 	}
-	if Product.ProductPoint < 0 {
-		return c.Status(fiber.StatusBadRequest).SendString("Point must more than 0")
+
+	if updateData.ProductPrice < 0 {
+		return c.Status(fiber.StatusBadRequest).SendString("Product_Price must be greater than 0")
 	}
-	_, err = database.ProductsCollection.ReplaceOne(context.Background(), bson.M{"_id": objID}, Product)
+
+	update := bson.M{
+		"$set": bson.M{
+			"productname":  updateData.ProductName,
+			"productprice": updateData.ProductPrice,
+			"productpoint": updateData.ProductPoint,
+			"producttype":  updateData.ProductType,
+			"description":  updateData.Description,
+			"image":        updateData.Image,
+		},
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(productID)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid product ID")
+	}
+
+	_, err = database.ProductsCollection.UpdateOne(context.Background(), bson.M{"_id": objectID}, update)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}
 
-	return c.SendStatus(fiber.StatusNoContent)
+	return c.Status(fiber.StatusOK).JSON(updateData)
 }
+
 func DeletetProduct(c *fiber.Ctx) error {
-	id := c.Params("id")
-	objID, err := primitive.ObjectIDFromHex(id)
+	productID := c.Params("id")
+
+	objectID, err := primitive.ObjectIDFromHex(productID)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid Product ID")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid product ID")
 	}
 
-	_, err = database.ProductsCollection.DeleteOne(context.Background(), bson.M{"_id": objID})
+	_, err = database.ProductsCollection.DeleteOne(context.Background(), bson.M{"_id": objectID})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 	}

@@ -20,6 +20,7 @@ type Orders struct {
 }
 
 type Bill struct {
+	
 	User_id     primitive.ObjectID `json:"user_id,omitempty" bson:"user_id,omitempty"`
 	CreatedAt   time.Time          `json:"created_at"`
 	Total_Price int                `json:"total_price" bson:"total_price"`
